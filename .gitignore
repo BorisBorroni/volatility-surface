@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.ipynb_checkpoints/
+*.duckdb
+output/
+*.egg-info/
+build/
+data/dolthub/chain_SPY.csv
+.ruff_cache/
+data/corrente/
