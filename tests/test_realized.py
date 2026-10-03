@@ -53,11 +53,11 @@ def test_close_to_close_stima_la_vera_vol():
 
 def yz_a_mano(df, n):
     """Yang-Zhang scritto con cicli espliciti sull'ultima finestra."""
-    o, h, l, c = (np.log(df[x].values) for x in ("open", "high", "low", "close"))
+    o, h, lo, c = (np.log(df[x].values) for x in ("open", "high", "low", "close"))
     t = range(len(df) - n, len(df))
     notte = np.array([o[i] - c[i - 1] for i in t])
     giorno = np.array([c[i] - o[i] for i in t])
-    rs = np.array([(h[i] - c[i]) * (h[i] - o[i]) + (l[i] - c[i]) * (l[i] - o[i]) for i in t])
+    rs = np.array([(h[i] - c[i]) * (h[i] - o[i]) + (lo[i] - c[i]) * (lo[i] - o[i]) for i in t])
     k = 0.34 / (1.34 + (n + 1) / (n - 1))
     var = notte.var(ddof=1) + k * giorno.var(ddof=1) + (1 - k) * rs.mean()
     return np.sqrt(252 * var)

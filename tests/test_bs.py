@@ -111,7 +111,7 @@ def test_kind_non_valido():
 def test_iv_array():
     K = np.array([90.0, 100.0, 110.0, 100.0])
     kind = np.array(["put", "call", "call", "put"])
-    p = np.array([bs.price(100, k, 0.5, 0.03, 0.01, 0.2, t) for k, t in zip(K, kind)])
+    p = np.array([bs.price(100, k, 0.5, 0.03, 0.01, 0.2, t) for k, t in zip(K, kind, strict=True)])
     iv = bs.implied_vol_array(p, 100, K, 0.5, 0.03, 0.01, kind)
     assert np.allclose(iv, 0.2, atol=1e-8)
 

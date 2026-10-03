@@ -116,7 +116,7 @@ def test_da_chain_legge_parametri_di_mercato():
 def test_forward_con_carry_per_scadenza():
     carry = [0.010, 0.020, 0.030, 0.040]
     s = Superficie(fits_finti(), S0, R, Q, carry=carry)
-    for T, c in zip(TS, carry):
+    for T, c in zip(TS, carry, strict=True):
         assert s.forward(T) == pytest.approx(S0 * np.exp(c * T))
     T = 0.375                                     # a metà tra 0.25 e 0.5: carry 0.025
     assert s.forward(T) == pytest.approx(S0 * np.exp(0.025 * T))

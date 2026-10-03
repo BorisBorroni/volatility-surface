@@ -48,7 +48,7 @@ def stima_q(g, S, r, T, N=150, n_strike=5):
     può ricavare il forward da C - P. Si cerca invece il q per cui, sugli strike vicini allo
     spot, la IV americana della call e quella della put coincidono (se q è sbagliato le due
     curve si separano). Restituisce nan se non si trova.
-    N=150 basta: su SPY il q cambia meno di 1e-5 passando da N=150 a N=300 (e costa metà).
+    N=150 basta: il q cambia meno di 1e-4 rispetto a N=300 (test_q_con_150_passi_come_con_300) e costa metà.
     """
     c = g[g["kind"] == "call"].set_index("K")["mid"]
     p = g[g["kind"] == "put"].set_index("K")["mid"]

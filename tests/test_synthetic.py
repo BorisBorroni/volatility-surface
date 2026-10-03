@@ -70,7 +70,9 @@ def test_chain_skew_negativo():
     assert d["iv"].between(0.05, 1.0).all()
     for T, g in d.groupby("T"):
         F = 100.0 * np.exp((M.r - M.q) * T)
-        iv_at = lambda K0: g.iloc[(g["K"] - K0).abs().argmin()]["iv"]
+        def iv_at(K0, g=g):
+            return g.iloc[(g["K"] - K0).abs().argmin()]["iv"]
+
         assert g.iloc[g["K"].argmin()]["iv"] > iv_at(F) > iv_at(F * np.exp(0.2 * np.sqrt(T)))
 
 

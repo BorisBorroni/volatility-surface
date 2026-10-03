@@ -1,5 +1,5 @@
 """Dalla chain scaricata (data/corrente/, vedi scarica_dati.py) alla superficie di volatilità
-implicita, in un solo passo.
+implicita, in un solo passo. Se la chain non c'è ancora la scarica da sola (serve la rete).
 
     python scripts/costruisci_superficie.py                  # SPY
 
@@ -8,6 +8,7 @@ tassi), filtro di moneyness, IV americana, rimozione degli outlier, fit SVI per 
 Scrive in output/ la chain finale, i parametri SVI e il riepilogo di cosa si perde a ogni passo.
 """
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,8 +26,12 @@ def main():
     ap.add_argument("--ticker", default="SPY")
     a = ap.parse_args()
 
-    if not (DATA / f"chain_{a.ticker}.csv").exists():
-        sys.exit("Manca la chain: lancia prima  python scripts/scarica_dati.py --solo-chain")
+    if not (DATA / f"chain_{a.ticker}.csv").exists():             # prima esecuzione: scarico la chain
+        print("Chain non trovata: la scarico (serve la rete)")
+        scarica = subprocess.run([sys.executable, str(ROOT / "scripts/scarica_dati.py"), "--solo-chain",
+                                  "--ticker", a.ticker], check=False)
+        if scarica.returncode != 0 or not (DATA / f"chain_{a.ticker}.csv").exists():
+            sys.exit("Download non riuscito: controlla la connessione e riprova")
     raw = pd.read_csv(DATA / f"chain_{a.ticker}.csv")
     meta = pd.read_json(DATA / f"meta_{a.ticker}.json", typ="series")
     cv = pd.read_csv(DATA / "curva_tassi.csv")
@@ -37,7 +42,10 @@ def main():
 
     passi = [("grezza", raw.assign(T=(pd.to_datetime(raw["scadenza"]) - pd.Timestamp(a.data_rif)).dt.days / 365))]
     passi.append(("quote valide", real.pulisci(raw, a.data_rif)))
-    d = real.costruisci_chain(raw, S, r, a.data_rif)                 # q americano, un lato per strike
+    try:
+        d = real.costruisci_chain(raw, S, r, a.data_rif)             # q americano, un lato per strike
+    except ValueError as e:
+        sys.exit(f"{e}. Yahoo non garantisce le quote fuori orario: riprova con il mercato aperto.")
     passi.append(("q stimabile, OTM", d))
     d = real.filtra_moneyness(d)
     passi.append(("moneyness", d))

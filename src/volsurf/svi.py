@@ -118,7 +118,7 @@ def fit_chain(df, k_check=None):
         k = np.log(g["K"].values / F)
         wm = g["iv"].values ** 2 * T
         vega = np.array([bs.vega(s, K, T, r, q, iv) for s, K, r, q, iv in
-                         zip(g["S"], g["K"], g["r"], g["q"], g["iv"])])
+                         zip(g["S"], g["K"], g["r"], g["q"], g["iv"], strict=True)])
         p = fit_slice(k, wm, vega)
         iv_mod = np.sqrt(w(k, p) / T)
         righe.append(dict(T=T, a=p.a, b=p.b, rho=p.rho, m=p.m, sigma=p.sigma,

@@ -4,6 +4,8 @@ Progetto individuale di finanza quantitativa. Parto dalle quotazioni delle opzio
 
 Il codice è in `src/volsurf`, i risultati sono in `notebooks/analisi.ipynb`.
 
+![Superficie di volatilità implicita di SPY (esecuzione di esempio) e struttura a termine ATM](img/superficie.png)
+
 **Risultato in breve.** La superficie si costruisce bene e senza arbitraggi evidenti nell'intervallo dei dati. Sul confronto implicita contro realizzata il premio c'è per il VIX (circa 3.5 punti di volatilità), ma per una singola opzione at-the-money a 30 giorni è di circa 0.4 punti e non è distinguibile da zero. Il backtest storico su 8 anni di SPY dà un guadagno medio per operazione di +0.07% dello spot (t = 1.24), che sparisce con costi di pochi punti base o con una IV più bassa di 0.7 punti. Quindi un vantaggio non è dimostrato.
 
 ## Indice
@@ -31,6 +33,7 @@ Il codice è in `src/volsurf`, i risultati sono in `notebooks/analisi.ipynb`.
 src/volsurf/      libreria: un modulo per argomento
 scripts/          comandi da lanciare (scaricare i dati, costruire la superficie, backtest)
 notebooks/        analisi.ipynb (risultati con grafici); genera_notebook.py lo rigenera
+img/              grafici mostrati in questo README
 tests/            test automatici (pytest)
 data/             serie storiche (prezzi, VIX, IV); data/corrente/ (non versionata) contiene la chain scaricata all'ultimo uso
 output/           file derivati, non versionato
@@ -43,26 +46,24 @@ I moduli, in ordine di dipendenza: `bs` (Black-Scholes), `heston`, `synthetic` (
 Serve Python 3.10 o superiore. Dalla cartella del progetto:
 
 ```
-pip install -e ".[dev,dati]"
+pip install -e ".[dev,dati,notebook]"
 ```
 
-`dev` installa pytest, `dati` installa yfinance (serve per scaricare i dati correnti), `notebook` installa quello che serve per rigenerare il notebook (`pip install -e ".[notebook]"`). Le serie storiche incluse in `data/` bastano per rifare l'analisi storica; la superficie richiede di scaricare prima la chain (primo comando qui sotto).
-
-Comandi, nell'ordine in cui li uso:
+`dev` installa pytest, `dati` installa yfinance (serve per scaricare la chain corrente), `notebook` installa quello che serve per rigenerare il notebook. Poi, in quest'ordine:
 
 ```
-python scripts/scarica_dati.py --solo-chain          # chain di SPY e curva dei tassi dell'ultima seduta
-python scripts/scarica_dati.py --solo-storico --anni 8   # aggiorna prezzi e VIX
-python scripts/costruisci_superficie.py            # pulizia, IV, fit SVI (circa 1 minuto)
-python scripts/backtest_storico.py                 # premio IV - RV e backtest su 8 anni
-python scripts/sensibilita.py                      # backtest sintetico: premio di rischio, frequenza, costi
-python scripts/controlla_iv.py                     # confronto tra la mia IV e quella del fornitore
-pytest                                             # 132 test (pytest -m "not slow" salta i più lenti)
+python scripts/backtest_storico.py        # premio IV - RV e backtest su 8 anni, sui dati inclusi (circa 30 secondi)
+python scripts/costruisci_superficie.py   # scarica la chain dell'ultima seduta e costruisce la superficie (circa 1 minuto, serve la rete)
+python scripts/sensibilita.py             # backtest sintetico: premio di rischio, frequenza, costi (pochi secondi)
+pytest                                    # 132 test (pytest -m "not slow" salta i più lenti)
+python notebooks/genera_notebook.py       # rigenera notebooks/analisi.ipynb con i grafici
 ```
 
-`scarica_dati.py` prende la chain da Yahoo Finance (yfinance), la curva dei tassi dal sito FRED (Treasury a 1, 3, 6 mesi, 1 e 2 anni) e i prezzi giornalieri di SPY e del VIX. Le chain non si possono scaricare per date passate: Yahoo dà solo la seduta corrente. Per questo la superficie è sempre quella dell'ultima seduta disponibile, mentre la storia viene da un'altra fonte (sezione 13).
+Altri due comandi servono per aggiornare o controllare i dati: `python scripts/scarica_dati.py --solo-storico --anni 8` aggiorna prezzi e VIX in `data/`, e `python scripts/controlla_iv.py` confronta la mia IV con quella del fornitore (richiede il file di quote di DoltHub descritto nella sezione 13, che non è nel repository).
 
-**Analisi corrente e analisi storica.** L'analisi del presente (la superficie) si calcola sui dati scaricati nel momento in cui si usa il progetto: `scarica_dati.py --solo-chain` salva la chain e la curva dei tassi in `data/corrente/` (cartella non versionata) e `costruisci_superficie.py` la elabora, quindi nel repository non c'è nessuna chain salvata. L'analisi storica (premio implicita-realizzata e backtest) usa invece le serie in `data/`: prezzi e VIX si aggiornano con `scarica_dati.py --solo-storico --anni 8`, mentre la serie di IV di DoltHub va riesportata (sezione 13). Il notebook ricalcola la parte corrente a ogni esecuzione. I numeri della sezione 14 relativi alla superficie sono quelli di un'esecuzione di esempio e cambiano a ogni giorno di mercato; quelli storici sono riproducibili sui dati inclusi.
+`scarica_dati.py` (lanciato da `costruisci_superficie.py` quando manca la chain) prende la chain da Yahoo Finance (yfinance), la curva dei tassi dal sito FRED (Treasury a 1, 3, 6 mesi, 1 e 2 anni) e i prezzi giornalieri di SPY e del VIX. Le chain non si possono scaricare per date passate: Yahoo dà solo la seduta corrente. Per questo la superficie è sempre quella dell'ultima seduta disponibile, mentre la storia viene da un'altra fonte (sezione 13).
+
+**Analisi corrente e analisi storica.** L'analisi del presente (la superficie) si calcola sui dati scaricati nel momento in cui si usa il progetto: la chain e la curva dei tassi vanno in `data/corrente/` (cartella non versionata), quindi nel repository non c'è nessuna chain salvata. Per riscaricarle: `python scripts/scarica_dati.py --solo-chain`. L'analisi storica (premio implicita-realizzata e backtest) usa invece le serie in `data/`: prezzi e VIX si aggiornano con `--solo-storico`, mentre la serie di IV di DoltHub va riesportata (sezione 13). Il notebook ricalcola la parte corrente a ogni esecuzione. I numeri della sezione 14 relativi alla superficie sono quelli di un'esecuzione di esempio e cambiano a ogni giorno di mercato; quelli storici sono riproducibili sui dati inclusi.
 
 ## 3. Convenzioni
 
@@ -147,7 +148,7 @@ cioè dipende solo da quanto la varianza realizzata sta sotto quella implicita. 
 
 Sul mondo sintetico (`backtest`) la IV di vendita è la IV ATM del modello e i percorsi sono quelli reali (sotto P). Per non risolvere Heston per ogni giorno e percorso, calcolo la IV ATM su una griglia di varianze e interpolo con una spline (`segnale.py`). Sui dati reali (`backtest_reale`) la IV di vendita è quella a 30 giorni del fornitore di quel giorno, con r = 3% e q = 1.3% costanti.
 
-Conversione della base temporale. la IV a 30 giorni è annualizzata sul calendario (30/365 di anno), mentre il backtest e la vol realizzata lavorano in giorni di borsa (21/252 di anno). Le due durate non coincidono (30 giorni di calendario sono circa 20.6 giorni di borsa) e usare la IV tale e quale venderebbe l'opzione a una varianza totale dell'1.4% più alta di quella di mercato. `realized.iv_in_tempo_di_borsa` converte la IV conservando la varianza totale (fattore 0.9931, cioè circa −0.12 punti a IV 17%), e lo applico a IV e VIX prima di ogni confronto con la vol realizzata e prima del backtest.
+Conversione della base temporale. la IV a 30 giorni è annualizzata sul calendario (30/365 di anno), mentre il backtest e la vol realizzata lavorano in giorni di borsa (21/252 di anno). Le due durate non coincidono (30 giorni di calendario sono circa 20.7 giorni di borsa) e usare la IV tale e quale venderebbe l'opzione a una varianza totale dell'1.4% più alta di quella di mercato. `realized.iv_in_tempo_di_borsa` converte la IV conservando la varianza totale (fattore 0.9931, cioè circa −0.12 punti a IV 17%), e lo applico a IV e VIX prima di ogni confronto con la vol realizzata e prima del backtest.
 
 ## 12. Statistica: perché Newey-West (`stat.py`)
 
@@ -204,6 +205,8 @@ Il VIX non è la IV di una call ATM: stima il prezzo di uno swap sulla varianza,
 | r = 0% / r = 5% (q = 1.3%) | +0.052% / +0.082% | 0.92 / 1.45 |
 | q = 0% / q = 2% (r = 3%) | +0.078% / +0.066% | 1.38 / 1.17 |
 
+![Somma cumulata del P&L e P&L medio per anno](img/backtest.png)
+
 Per anno: 2020 +0.02, 2021 +0.16, 2022 −0.13, 2023 +0.19, 2024 −0.03, 2025 +0.06, 2026 +0.21. Il segno non è stabile: l'anno peggiore è il 2022, e il 2020 è quello con la dispersione maggiore (deviazione standard 1.1%).
 
 **Mondo sintetico** (300 percorsi). Con lam = 0 il premio è leggermente negativo (−0.02%, intervallo [−0.03, −0.01]), e cresce con lam: +0.06% con lam = 2 a 21 giorni. Ribilanciare meno spesso non cambia la media ma ne alza la dispersione (a 21 giorni la deviazione standard passa da 0.53 a 1.19 ribilanciando ogni 10 giorni invece che ogni giorno). Il premio sintetico a 21 giorni scompare con circa 2 punti base di costo. Il −0.02% a lam = 0 non è un errore del codice: è l'effetto della correlazione negativa fra prezzo e varianza (rho = −0.7), che rende la copertura di Black-Scholes imperfetta su un'opzione at-the-money; ponendo rho = 0 la media diventa −0.007% con intervallo [−0.02, +0.005], compatibile con zero.
@@ -220,6 +223,7 @@ Per anno: 2020 +0.02, 2021 +0.16, 2022 −0.13, 2023 +0.19, 2024 −0.03, 2025 +
 - Un solo titolo (SPY) e un solo schema (ATM, 21 giorni); nessun test fuori campione. Ho guardato più varianti (costi, r, q, spostamenti della IV): i p-value non sono corretti per i confronti multipli, ma poiché nessun risultato è significativo la conclusione non ne risente.
 - Il mondo sintetico è Heston senza salti e con opzioni europee; Durrleman è calcolato sulle IV americane come approssimazione.
 - La superficie sulle scadenze fino a 35 giorni è poco affidabile (dati su un solo lato, ala al limite).
+- Yahoo non garantisce la qualità delle quote: fuori orario alcune possono avere bid o ask nulli e vengono scartate dalla pulizia, quindi il numero di quote e di scadenze può cambiare da un download all'altro.
 
 ## 16. Test
 

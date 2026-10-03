@@ -1,16 +1,28 @@
-"""Genera ed esegue analisi.ipynb. Da lanciare dalla cartella notebooks: python genera_notebook.py"""
+"""Genera ed esegue analisi.ipynb. Da qualsiasi cartella: python notebooks/genera_notebook.py"""
+import os
+from pathlib import Path
+
 import nbformat as nbf
 from nbclient import NotebookClient
 
+os.chdir(Path(__file__).resolve().parent)       # i percorsi del notebook sono relativi a notebooks/
+
 C = []
-md = lambda s: C.append(nbf.v4.new_markdown_cell(s.strip()))
-code = lambda s: C.append(nbf.v4.new_code_cell(s.strip()))
+
+
+def md(s):
+    C.append(nbf.v4.new_markdown_cell(s.strip()))
+
+
+def code(s):
+    C.append(nbf.v4.new_code_cell(s.strip()))
+
 
 md("""
 # Volatility surface su SPY: analisi
 
-Il notebook raccoglie i risultati del progetto. La sezione 1 si ricalcola a ogni esecuzione sui dati scaricati in quel momento (i grafici salvati nel file sono quelli dell'ultima esecuzione); le sezioni 2–4 usano le serie storiche in `data/`. Non calcola nulla di nuovo: usa le funzioni di `src/volsurf`
-sui dati in `data/` (i passaggi e le scelte sono spiegati nel README). Tre domande:
+Il notebook raccoglie i risultati del progetto. La sezione 1 si ricalcola a ogni esecuzione sui dati scaricati in quel momento (i grafici salvati nel file sono quelli dell'ultima esecuzione); le sezioni 2–4 usano le serie storiche in `data/`. Il notebook non implementa nulla di nuovo: chiama le funzioni di `src/volsurf`
+(i passaggi e le scelte sono spiegati nel README). Tre domande:
 1. Che forma ha la superficie di volatilità implicita di SPY (chain dell'ultima seduta disponibile)?
 2. La volatilità implicita è in media sopra quella realizzata?
 3. Vendere una call e coprirla in delta ha prodotto un guadagno, sui dati storici?
@@ -28,14 +40,15 @@ plt.rcParams.update({"figure.dpi": 100, "axes.grid": True, "grid.alpha": .3, "ax
 md("## 1. La superficie\nQuote OTM per strike (put sotto il forward, call sopra), IV americana ricavata da un albero binomiale CRR, un fit SVI per scadenza.")
 code("""
 import subprocess
-from pathlib import Path
 def esegui(script, *args):
     return subprocess.run([sys.executable, f"scripts/{script}", *args], cwd="..", capture_output=True, text=True)
 
 # analisi corrente: scarica la chain dell'ultima seduta (serve la rete) e ricostruisce la superficie
 if esegui("scarica_dati.py", "--solo-chain").returncode != 0:
     print("download non riuscito: uso gli ultimi dati scaricati")
-esegui("costruisci_superficie.py").check_returncode()
+res = esegui("costruisci_superficie.py")
+if res.returncode != 0:
+    raise RuntimeError(res.stderr.strip().splitlines()[-1] if res.stderr.strip() else "costruisci_superficie.py non riuscito")
 d = pd.read_csv("../output/chain_finale_SPY.csv")
 fits = svi.fit_chain(d)
 sup = surface.Superficie.da_chain(d)
@@ -142,10 +155,10 @@ pd.DataFrame(righe).T.round(3)
 """)
 md("""
 La nostra IV (calcolata dalla chain con albero americano) risulta circa 0.7 punti sotto quella del fornitore: causa non spiegata. Se si vende a quella IV invece che a quella del fornitore,
-il guadagno medio scompare (diventa leggermente negativo). Con costi di 1 punto base per ribilanciamento si riduce a circa la metà; per SPY 1 punto base è una stima prudente. **Conclusione: sui dati storici un vantaggio non è dimostrato**; il segnale è debole e dentro il margine d'errore di come si misura la IV.
+il guadagno medio scompare (diventa leggermente negativo). Con un costo di 1 punto base del controvalore scambiato il guadagno scende da +0.070% a +0.045%, e con 3 punti base sparisce; per SPY 1 punto base è una stima prudente. **Conclusione: sui dati storici un vantaggio non è dimostrato**; il segnale è debole e dentro il margine d'errore di come si misura la IV.
 """)
 
-md("## 4. Mondo sintetico: perché la copertura non basta\nCon un modello di Heston noto (i parametri veri sono noti) si vede cosa ci si dovrebbe aspettare: l'effetto della frequenza di copertura e dei costi su una call venduta a 21 giorni.")
+md("## 4. Mondo sintetico: perché la copertura non basta\nCon un modello di Heston noto (i parametri veri sono noti) si vede cosa ci si dovrebbe aspettare: l'effetto della frequenza di copertura e dei costi su una call venduta a 21 giorni. Qui 100 percorsi (`scripts/sensibilita.py` ne usa 300, per questo le medie differiscono leggermente).")
 code("""
 M = sy.Mondo()
 S, V = sy.simulate_P(M, 1260, n_paths=100, seed=7)

@@ -100,7 +100,7 @@ def raw_americana(semi_spread=0.01):
         K = np.arange(round(F * 0.85), F * 1.15, 2.5)
         sig = sigma_vera(np.log(K / F))
         for kind in ("call", "put"):
-            for k_, m in zip(K, am.prezzo(S0A, K, T, R_A, Q_VERO, sig, kind, 300)):
+            for k_, m in zip(K, am.prezzo(S0A, K, T, R_A, Q_VERO, sig, kind, 300), strict=True):
                 righe.append((scad, kind, k_, m - semi_spread, m + semi_spread))
     return pd.DataFrame(righe, columns=["scadenza", "kind", "strike", "bid", "ask"])
 
@@ -193,7 +193,9 @@ def test_rimuovi_outlier_toglie_le_quote_sbagliate_e_tiene_le_altre():
     sporco = d.copy()
     sporco.loc[sbagliate, "mid"] *= 1.35
     pulito = real.rimuovi_outlier(ch.add_iv(sporco.drop(columns="iv")))
-    chiavi = lambda x: set(zip(x["T"].round(9), x["K"]))
+    def chiavi(x):
+        return set(zip(x["T"].round(9), x["K"], strict=True))
+
     assert not (chiavi(d.loc[sbagliate]) & chiavi(pulito))          # le sbagliate sono sparite
     buone = d.drop(index=sbagliate).dropna(subset=["iv"])
     assert len(chiavi(buone) & chiavi(pulito)) >= 0.9 * len(chiavi(buone))   # le buone restano

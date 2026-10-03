@@ -102,7 +102,7 @@ MC_CASI = [
 def test_monte_carlo(p, T_):
     # verifica indipendente dalla formula: il prezzo di Heston deve coincidere con la simulazione
     strikes = (85.0, 100.0, 115.0)
-    for K, (mc, se) in zip(strikes, _mc_call(p, strikes, T_)):
+    for K, (mc, se) in zip(strikes, _mc_call(p, strikes, T_), strict=True):
         assert abs(mc - heston.call_price(S, K, T_, r, q, p)) < 4 * se + 0.03
 
 
