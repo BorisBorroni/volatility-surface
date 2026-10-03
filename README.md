@@ -93,7 +93,7 @@ Questo è il passaggio più delicato: i dati grezzi contengono quote inutilizzab
 5. **Moneyness.** Tengo gli strike con |ln(K/F)| ≤ 0.6·√T, una fascia che si allarga con la scadenza. Le code lontanissime hanno prezzi quasi nulli e IV poco informative e deformano il fit.
 6. **IV americana** di ogni quota e **rimozione degli outlier**: per ogni scadenza confronto la IV di una quota con la retta tra i due vicini a sinistra e a destra (gli smile sono lisci), e scarto la quota peggiore se si discosta più di 4 volte lo scarto robusto (MAD) e comunque più di 0.5 punti. Ripeto fino a 15 volte, togliendo una sola quota per scadenza alla volta, perché un outlier fa sembrare sbagliati anche i vicini.
 
-In un'esecuzione di esempio: 8959 quote grezze, 2467 quote finali, 17 scadenze (da 14 a 441 giorni).
+In un'esecuzione di esempio: 8650 quote grezze, 2467 quote finali, 17 scadenze (da 14 a 441 giorni).
 
 ## 7. Il modello SVI (`svi.py`)
 
