@@ -13,10 +13,11 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+ROOT = Path(__file__).resolve().parents[1]          # le cartelle data/ e output/ sono quelle del progetto
+sys.path.insert(0, str(ROOT / "src"))
 from volsurf import chain, real, svi  # noqa: E402
 
-DATA, OUT = Path("data/corrente"), Path("output")
+DATA, OUT = ROOT / "data/corrente", ROOT / "output"
 
 
 def main():
@@ -24,6 +25,8 @@ def main():
     ap.add_argument("--ticker", default="SPY")
     a = ap.parse_args()
 
+    if not (DATA / f"chain_{a.ticker}.csv").exists():
+        sys.exit("Manca la chain: lancia prima  python scripts/scarica_dati.py --solo-chain")
     raw = pd.read_csv(DATA / f"chain_{a.ticker}.csv")
     meta = pd.read_json(DATA / f"meta_{a.ticker}.json", typ="series")
     cv = pd.read_csv(DATA / "curva_tassi.csv")

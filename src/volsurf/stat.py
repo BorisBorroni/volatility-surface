@@ -20,13 +20,3 @@ def media_hac(x, lags):
     x = np.asarray(x, dtype=float)
     se = np.sqrt(_omega(x - x.mean(), lags) / len(x))
     return x.mean(), se, x.mean() / se
-
-
-def pendenza_hac(y, x, lags):
-    """Pendenza della regressione di y su x (con intercetta) e suo errore standard Newey-West."""
-    y, x = np.asarray(y, dtype=float), np.asarray(x, dtype=float)
-    xc = x - x.mean()
-    b = xc @ (y - y.mean()) / (xc @ xc)
-    u = (y - y.mean() - b * xc) * xc            # score di ogni osservazione
-    se = np.sqrt(_omega(u, lags) * len(x)) / (xc @ xc)
-    return b, se

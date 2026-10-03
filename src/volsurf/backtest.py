@@ -25,13 +25,6 @@ def backtest(mondo, S, V, giorni, ogni=1, costo=0.0):
     return pd.concat(blocchi, ignore_index=True)
 
 
-def riassunto(df):
-    """Media, deviazione standard, % di operazioni in guadagno e caso peggiore del P&L."""
-    p = df["pnl"]
-    return pd.Series({"n": len(p), "media": p.mean(), "dev_std": p.std(),
-                      "in_guadagno": (p > 0).mean(), "peggiore": p.min()})
-
-
 def media_con_ic(df):
     """P&L medio (% dello spot) con intervallo di confidenza al 95%. Gli ingressi dello stesso
     percorso sono legati tra loro (la varianza persiste), quindi si fa prima la media per

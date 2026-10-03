@@ -19,6 +19,8 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
+ROOT = Path(__file__).resolve().parents[1]
+
 COLONNE = ["strike", "bid", "ask", "lastPrice", "volume", "openInterest", "impliedVolatility",
            "lastTradeDate"]
 
@@ -61,7 +63,7 @@ def main():
     ap.add_argument("--r", type=float, default=None, help="tasso in %%, se FRED non funziona")
     ap.add_argument("--solo-storico", action="store_true", help="scarica solo storico e VIX, non la chain")
     ap.add_argument("--solo-chain", action="store_true", help="scarica solo chain e tassi, non lo storico")
-    ap.add_argument("--out", default="data")
+    ap.add_argument("--out", default=str(ROOT / "data"))
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(exist_ok=True)

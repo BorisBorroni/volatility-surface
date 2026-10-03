@@ -13,11 +13,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+ROOT = Path(__file__).resolve().parents[1]          # le cartelle data/ e output/ sono quelle del progetto
+sys.path.insert(0, str(ROOT / "src"))
 from volsurf import americana as am  # noqa: E402
 from volsurf.dati import leggi  # noqa: E402
 
 R, Q = 0.03, 0.013
+CHAIN = ROOT / "data/dolthub/chain_SPY.csv"
 
 
 def iv_atm_scadenza(g, S, T):
@@ -38,9 +40,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--giorni", type=int, default=60)
     a = ap.parse_args()
-    prezzi = leggi("data/storico_SPY.csv")["Close"]
-    vol = leggi("data/dolthub/vol_SPY.csv")["iv_current"].astype(float)
-    c = pd.read_csv("data/dolthub/chain_SPY.csv", encoding="utf-8-sig", parse_dates=["date", "expiration"])
+    prezzi = leggi(ROOT / "data/storico_SPY.csv")["Close"]
+    vol = leggi(ROOT / "data/dolthub/vol_SPY.csv")["iv_current"].astype(float)
+    if not CHAIN.exists():
+        sys.exit("Manca data/dolthub/chain_SPY.csv: va esportato da DoltHub (vedi README, sezione 13).")
+    c = pd.read_csv(CHAIN, encoding="utf-8-sig", parse_dates=["date", "expiration"])
     date = sorted(set(c["date"]) & set(prezzi.index) & set(vol.index))
     date = date[::max(1, len(date) // a.giorni)]
     righe = []
@@ -68,8 +72,8 @@ def main():
           f"{r['diff'].median():.2f}, dev std {r['diff'].std():.2f}, |diff|>1 punto in "
           f"{(r['diff'].abs() > 1).mean():.0%} dei giorni; correlazione {r['nostra'].corr(r['fornitore']):.3f}")
     print(r.groupby(r["data"].dt.year)["diff"].agg(["count", "mean", "std"]).round(2).to_string())
-    Path("output").mkdir(exist_ok=True)
-    r.to_csv("output/controllo_iv.csv", index=False)
+    (ROOT / "output").mkdir(exist_ok=True)
+    r.to_csv(ROOT / "output/controllo_iv.csv", index=False)
 
 
 if __name__ == "__main__":

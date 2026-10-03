@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+ROOT = Path(__file__).resolve().parents[1]          # le cartelle data/ e output/ sono quelle del progetto
+sys.path.insert(0, str(ROOT / "src"))
 from volsurf import backtest as bt  # noqa: E402
 from volsurf import realized, stat  # noqa: E402
 from volsurf.dati import leggi  # noqa: E402
@@ -38,11 +39,11 @@ def premio(nome, iv, rv_futura):
 
 
 def main():
-    ohlc = leggi("data/storico_SPY.csv")
+    ohlc = leggi(ROOT / "data/storico_SPY.csv")
     prezzi = ohlc["Close"]
-    iv = leggi("data/dolthub/vol_SPY.csv")["iv_current"].astype(float)
+    iv = leggi(ROOT / "data/dolthub/vol_SPY.csv")["iv_current"].astype(float)
     iv = iv[(iv > 0.03) & (iv < 3)].reindex(prezzi.index)            # solo giorni di borsa con IV valida
-    vix = leggi("data/vix.csv")["Close"].reindex(prezzi.index) / 100
+    vix = leggi(ROOT / "data/vix.csv")["Close"].reindex(prezzi.index) / 100
     print(f"SPY: {prezzi.index[0].date()} -> {prezzi.index[-1].date()}, {len(prezzi)} giorni, "
           f"{iv.notna().sum()} con IV\n")
 
@@ -80,8 +81,8 @@ def main():
         d = bt.backtest_reale(prezzi.values, c(iv + sh / 100, GIORNI).values, GIORNI, R, Q)
         m, se, t = stat.media_hac(d["pnl"], LAG)
         print(f"  {sh:+.2f} punti: P&L medio {m:+.3f}%  (se {se:.3f}, t {t:+.2f})")
-    Path("output").mkdir(exist_ok=True)
-    df.to_csv("output/backtest_storico.csv", index=False)
+    (ROOT / "output").mkdir(exist_ok=True)
+    df.to_csv(ROOT / "output/backtest_storico.csv", index=False)
 
 
 if __name__ == "__main__":

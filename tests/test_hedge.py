@@ -94,13 +94,6 @@ def test_backtest_ritrova_il_premio():
     assert con["pnl"].mean() - senza["pnl"].mean() > 0.2
 
 
-def test_riassunto():
-    import pandas as pd
-    r = bt.riassunto(pd.DataFrame({"pnl": [1.0, -2.0, 3.0, 2.0]}))
-    assert r["n"] == 4 and r["media"] == 1.0 and r["in_guadagno"] == 0.75 and r["peggiore"] == -2.0
-    assert r["dev_std"] == pytest.approx(np.std([1, -2, 3, 2], ddof=1))
-
-
 def test_costi_di_transazione_abbassano_il_pnl_come_previsto():
     M = sy.Mondo()
     S, _ = sy.simulate_P(M, 63, n_paths=50, seed=5)

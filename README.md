@@ -4,7 +4,7 @@ Progetto individuale di finanza quantitativa. Parto dalle quotazioni delle opzio
 
 Il codice è in `src/volsurf`, i risultati sono in `notebooks/analisi.ipynb`.
 
-Risultato in breve: La superficie si costruisce bene e senza arbitraggi evidenti nell'intervallo dei dati. Sul confronto implicita contro realizzata il premio c'è per il VIX (circa 3.5 punti di volatilità), ma per una singola opzione at-the-money a 30 giorni è di circa 0.4 punti e non è distinguibile da zero. Il backtest storico su 8 anni di SPY dà un guadagno medio per operazione di +0.07% dello spot (t = 1.24), che sparisce con costi di pochi punti base o con una IV più bassa di 0.7 punti. Quindi un vantaggio non è dimostrato.
+**Risultato in breve.** La superficie si costruisce bene e senza arbitraggi evidenti nell'intervallo dei dati. Sul confronto implicita contro realizzata il premio c'è per il VIX (circa 3.5 punti di volatilità), ma per una singola opzione at-the-money a 30 giorni è di circa 0.4 punti e non è distinguibile da zero. Il backtest storico su 8 anni di SPY dà un guadagno medio per operazione di +0.07% dello spot (t = 1.24), che sparisce con costi di pochi punti base o con una IV più bassa di 0.7 punti. Quindi un vantaggio non è dimostrato.
 
 ## Indice
 
@@ -46,7 +46,7 @@ Serve Python 3.10 o superiore. Dalla cartella del progetto:
 pip install -e ".[dev,dati]"
 ```
 
-`dev` installa pytest, `dati` installa yfinance (serve solo per scaricare dati nuovi). I dati già inclusi bastano per rifare tutte le analisi.
+`dev` installa pytest, `dati` installa yfinance (serve per scaricare i dati correnti), `notebook` installa quello che serve per rigenerare il notebook (`pip install -e ".[notebook]"`). Le serie storiche incluse in `data/` bastano per rifare l'analisi storica; la superficie richiede di scaricare prima la chain (primo comando qui sotto).
 
 Comandi, nell'ordine in cui li uso:
 
@@ -57,7 +57,7 @@ python scripts/costruisci_superficie.py            # pulizia, IV, fit SVI (circa
 python scripts/backtest_storico.py                 # premio IV - RV e backtest su 8 anni
 python scripts/sensibilita.py                      # backtest sintetico: premio di rischio, frequenza, costi
 python scripts/controlla_iv.py                     # confronto tra la mia IV e quella del fornitore
-pytest                                             # 134 test (pytest -m "not slow" salta i più lenti)
+pytest                                             # 132 test (pytest -m "not slow" salta i più lenti)
 ```
 
 `scarica_dati.py` prende la chain da Yahoo Finance (yfinance), la curva dei tassi dal sito FRED (Treasury a 1, 3, 6 mesi, 1 e 2 anni) e i prezzi giornalieri di SPY e del VIX. Le chain non si possono scaricare per date passate: Yahoo dà solo la seduta corrente. Per questo la superficie è sempre quella dell'ultima seduta disponibile, mentre la storia viene da un'altra fonte (sezione 13).
@@ -85,9 +85,9 @@ Le funzioni lavorano su array: la IV americana è una bisezione (su [0.02, 3.0])
 
 Questo è il passaggio più delicato: i dati grezzi contengono quote inutilizzabili e mancano due informazioni che servono per prezzare, cioè il tasso e i dividendi. I passi, in ordine (lo script `costruisci_superficie.py` stampa quante quote restano dopo ciascuno):
 
-1. **Quote valide.** Tengo le scadenze tra 14 giorni e 2 anni (sotto i 14 giorni il prezzo è dominato dal rumore), scarto le quote con bid nullo o incrociate (ask < bid), quelle con spread relativo oltre il 50% e quelle con prezzo medio sotto 0.10. Il prezzo di riferimento è il mid, (bid + ask)/2.
-2. **Tasso per scadenza.** Interpolo linearmente la curva del Treasury americano (FRED) alla scadenza di ciascuna opzione, invece di usare un tasso unico. Con un tasso fisso il dividend yield che ne esce era distorto, quindi la curva è necessaria.
-3. **Dividend yield implicito.** Con opzioni americane la put-call parity vale solo come disuguaglianza, quindi non posso ricavare il forward da C − P. Per ogni scadenza cerco allora il q per cui la IV americana della call e quella della put coincidono sui 5 strike più vicini allo spot (se q è sbagliato le due curve si separano). Uso 150 passi per questa stima, perché ho verificato che q cambia meno di 1e-5 rispetto a 300 passi e costa la metà. Se non trovo un q (nessun cambio di segno) la scadenza viene scartata e lo dichiaro nell'output. Nota importante: questo q non è il dividend yield dichiarato di SPY. Assorbe anche il costo di finanziamento e qualsiasi differenza tra il tasso Treasury e quello effettivo, quindi lo chiamo **carry implicito** (r − q). I valori ottenuti sono sotto quelli che mi aspetto da SPY (circa 1–1.3% annuo): da −1.5% a 14 giorni a +0.1–0.5% oltre i tre mesi. Parte della differenza è strutturale: SPY paga dividendi trimestrali discreti (di norma con stacco il terzo venerdì di marzo, giugno, settembre e dicembre), quindi le scadenze brevi, che non contengono nessuno stacco, non hanno dividendi da scontare. Il resto, circa 0.6–1 punto, è compatibile con un costo di finanziamento implicito sopra il rendimento dei Treasury, ma non l'ho verificato. Il punto da tenere a mente è che il carry è stimato **per scadenza**, quindi il forward di ogni scadenza è coerente con le quote di quella scadenza qualunque ne sia la causa; ma i singoli valori di q (specie quelli negativi sulle scadenze brevi) non vanno letti come stime di dividendi.
+1. **Quote valide.** Tengo le scadenze tra 14 giorni e 2 anni (sotto i 14 giorni le quote hanno poco valore temporale e spread relativi alti, quindi la IV è poco informativa), scarto le quote con bid nullo o incrociate (ask < bid), quelle con spread relativo oltre il 50% e quelle con prezzo medio sotto 0.10. Il prezzo di riferimento è il mid, (bid + ask)/2.
+2. **Tasso per scadenza.** Interpolo linearmente la curva del Treasury americano (FRED) alla scadenza di ciascuna opzione, invece di usare un tasso unico. Con un tasso fisso il dividend yield che ne esce risulta distorto, quindi la curva è necessaria.
+3. **Dividend yield implicito.** Con opzioni americane la put-call parity vale solo come disuguaglianza, quindi non posso ricavare il forward da C − P. Per ogni scadenza cerco allora il q per cui la IV americana della call e quella della put coincidono sui 5 strike più vicini allo spot (se q è sbagliato le due curve si separano). Uso 150 passi per questa stima invece di 300: su una chain con q noto (test `test_q_con_150_passi_come_con_300`) e su SPY la differenza in q è sotto 1e-4 e il calcolo costa la metà. Se non trovo un q (nessun cambio di segno) la scadenza viene scartata e lo dichiaro nell'output. Nota importante: questo q non è il dividend yield dichiarato di SPY. Assorbe anche il costo di finanziamento e qualsiasi differenza tra il tasso Treasury e quello effettivo, quindi lo chiamo **carry implicito** (r − q). I valori ottenuti sono sotto quelli che mi aspetto da SPY (circa 1–1.3% annuo): da −1.5% a 14 giorni a +0.1–0.5% oltre i tre mesi. Parte della differenza è strutturale: SPY paga dividendi trimestrali discreti (di norma con stacco il terzo venerdì di marzo, giugno, settembre e dicembre), quindi le scadenze brevi, che non contengono nessuno stacco, non hanno dividendi da scontare. Il resto, circa 0.6–1 punto, è compatibile con un costo di finanziamento implicito sopra il rendimento dei Treasury, ma non l'ho verificato. Il punto da tenere a mente è che il carry è stimato **per scadenza**, quindi il forward di ogni scadenza è coerente con le quote di quella scadenza qualunque ne sia la causa; ma i singoli valori di q (specie quelli negativi sulle scadenze brevi) non vanno letti come stime di dividendi.
 4. **Un lato per strike.** Tengo le put sotto il forward e le call sopra (opzioni out-of-the-money), perché sono le più liquide e hanno meno componente di esercizio anticipato.
 5. **Moneyness.** Tengo gli strike con |ln(K/F)| ≤ 0.6·√T, una fascia che si allarga con la scadenza. Le code lontanissime hanno prezzi quasi nulli e IV poco informative e deformano il fit.
 6. **IV americana** di ogni quota e **rimozione degli outlier**: per ogni scadenza confronto la IV di una quota con la retta tra i due vicini a sinistra e a destra (gli smile sono lisci), e scarto la quota peggiore se si discosta più di 4 volte lo scarto robusto (MAD) e comunque più di 0.5 punti. Ripeto fino a 15 volte, togliendo una sola quota per scadenza alla volta, perché un outlier fa sembrare sbagliati anche i vicini.
@@ -100,7 +100,7 @@ Per ogni scadenza interpolo la varianza totale con la parametrizzazione SVI "raw
 
     w(k) = a + b ( rho (k − m) + sqrt((k − m)² + sigma²) )
 
-Cinque parametri: a è il livello, b l'angolo dello smile, rho l'asimmetria (skew), m lo spostamento, sigma la curvatura al minimo. Ho scelto SVI perché è lo standard di mercato per questo problema, ha pochi parametri, e le sue ali sono lineari come richiede il teorema di Lee.
+Cinque parametri: a è il livello, b l'angolo dello smile, rho l'asimmetria (skew), m lo spostamento, sigma la curvatura al minimo. Ho scelto SVI perché è lo standard di mercato per questo problema, ha pochi parametri, e le sue ali sono lineari, in accordo con il limite di Lee (pendenza asintotica della varianza totale al massimo 2).
 
 Il fit segue Zeliade: fissati m e sigma, il problema diventa lineare nei restanti parametri (con vincoli di segno), quindi cerco solo su (m, sigma): una griglia 15×15 e poi un affinamento con Nelder-Mead sui tre punti migliori. Pesi: la vega di ogni quota, così le quote vicino all'ATM contano di più di quelle in coda. Servono almeno 5 quote per scadenza.
 
@@ -113,7 +113,7 @@ Controlli che il codice calcola e riporta:
 
 ## 8. La superficie (`surface.py`)
 
-La classe `Superficie` mette insieme i fit: a un k fissato interpola linearmente la varianza totale tra le due scadenze vicine (interpolare in w e non in IV evita l'arbitraggio calendar); fuori dall'intervallo delle scadenze la IV resta costante. Il forward a una scadenza qualsiasi usa il carry r − q interpolato.
+La classe `Superficie` mette insieme i fit: a un k fissato interpola linearmente la varianza totale tra le due scadenze vicine (interpolare in varianza totale e non in IV mantiene l'ordinamento delle varianze nel tempo, quindi niente arbitraggio calendar se le scadenze quotate lo rispettano; l'assenza di butterfly sulle curve interpolate è verificata numericamente nei test, non garantita in teoria); fuori dall'intervallo delle scadenze la IV resta costante. Il forward a una scadenza qualsiasi usa il carry r − q interpolato.
 
 Scelta importante: ogni scadenza ricorda l'intervallo di k dei suoi dati e `iv(K, T)` restituisce **NaN** fuori da quel dominio, perché lì lo SVI è solo un'estrapolazione. Si può chiedere comunque l'estrapolazione con `fuori="estrapola"`, ma non è affidabile.
 
@@ -147,11 +147,11 @@ cioè dipende solo da quanto la varianza realizzata sta sotto quella implicita. 
 
 Sul mondo sintetico (`backtest`) la IV di vendita è la IV ATM del modello e i percorsi sono quelli reali (sotto P). Per non risolvere Heston per ogni giorno e percorso, calcolo la IV ATM su una griglia di varianze e interpolo con una spline (`segnale.py`). Sui dati reali (`backtest_reale`) la IV di vendita è quella a 30 giorni del fornitore di quel giorno, con r = 3% e q = 1.3% costanti.
 
-Una correzione di cui tengo conto: la IV a 30 giorni è annualizzata sul calendario (30/365 di anno), mentre il backtest e la vol realizzata lavorano in giorni di borsa (21/252 di anno). Le due durate non coincidono (30 giorni di calendario sono circa 20.6 giorni di borsa) e usare la IV tale e quale venderebbe l'opzione a una varianza totale dell'1.4% più alta di quella di mercato. `realized.iv_in_tempo_di_borsa` converte la IV conservando la varianza totale (fattore 0.9931, cioè circa −0.12 punti a IV 17%), e lo applico a IV e VIX prima di ogni confronto con la vol realizzata e prima del backtest.
+Conversione della base temporale. la IV a 30 giorni è annualizzata sul calendario (30/365 di anno), mentre il backtest e la vol realizzata lavorano in giorni di borsa (21/252 di anno). Le due durate non coincidono (30 giorni di calendario sono circa 20.6 giorni di borsa) e usare la IV tale e quale venderebbe l'opzione a una varianza totale dell'1.4% più alta di quella di mercato. `realized.iv_in_tempo_di_borsa` converte la IV conservando la varianza totale (fattore 0.9931, cioè circa −0.12 punti a IV 17%), e lo applico a IV e VIX prima di ogni confronto con la vol realizzata e prima del backtest.
 
 ## 12. Statistica: perché Newey-West (`stat.py`)
 
-Il backtest apre una posizione ogni giorno, e ognuna dura 21 giorni di borsa: due operazioni consecutive condividono 20 giorni su 21. I risultati sono quindi fortemente correlati e l'errore standard classico, che li tratta come indipendenti, sottostima di molto l'incertezza (e gonfia la statistica t). Uso lo stimatore di Newey-West con pesi di Bartlett e 21 ritardi per la media (`media_hac`) e per la pendenza di una regressione (`pendenza_hac`). Nota: fino al 2023 le osservazioni della IV non sono giornaliere (lunedì, mercoledì e venerdì), quindi 21 ritardi in numero di osservazioni coprono più di 21 giorni di borsa: la sovrapposizione reale è di circa 9 osservazioni. Un numero di ritardi più grande del necessario rende l'errore standard più prudente, non meno; preferisco questo a una scelta più stretta. Sul mondo sintetico invece le operazioni dello stesso percorso sono legate tra loro ma i percorsi sono indipendenti: faccio la media per percorso e calcolo l'errore standard tra percorsi (`media_con_ic`).
+Il backtest apre una posizione ogni giorno, e ognuna dura 21 giorni di borsa: due operazioni consecutive condividono 20 giorni su 21. I risultati sono quindi fortemente correlati e l'errore standard classico, che li tratta come indipendenti, sottostima di molto l'incertezza (e gonfia la statistica t). Uso lo stimatore di Newey-West con pesi di Bartlett e 21 ritardi (`media_hac`). Nota: fino al 2023 le osservazioni della IV non sono giornaliere (lunedì, mercoledì e venerdì), quindi 21 ritardi in numero di osservazioni coprono più di 21 giorni di borsa: la sovrapposizione reale è di circa 9 osservazioni. Un numero di ritardi più grande del necessario tende a rendere l'errore standard più prudente, non meno, e preferisco questo a una scelta più stretta. Sul mondo sintetico invece le operazioni dello stesso percorso sono legate tra loro ma i percorsi sono indipendenti: faccio la media per percorso e calcolo l'errore standard tra percorsi (`media_con_ic`).
 
 ## 13. Dati storici
 
@@ -173,6 +173,8 @@ Limiti di questi dati, che pesano sull'interpretazione:
 - Per le quote, qualche percento ha bid nullo.
 
 Dopo il download calcolo la mia IV a 30 giorni su 62 giorni di prova (`controlla_iv.py`) e la confronto con quella del fornitore: la mia è più bassa di 0.73 punti in media (mediana 0.71), con correlazione 0.997. La differenza è sistematica, quindi non è rumore; non ne conosco la causa (convenzioni del fornitore, r e q costanti, scelta degli strike). È il motivo per cui nel backtest mostro la sensibilità a uno spostamento della IV.
+
+**Fonti e uso dei dati.** Prezzi, VIX e chain provengono da Yahoo Finance (tramite `yfinance`), la curva dei tassi da FRED, le serie di IV da DoltHub (`post-no-preference/options`). I file in `data/` sono estratti piccoli inclusi a scopo didattico, per rendere riproducibile l'analisi storica; per un uso diverso vanno rispettati i termini delle singole fonti.
 
 ## 14. Risultati
 
@@ -221,4 +223,4 @@ Per anno: 2020 +0.02, 2021 +0.16, 2022 −0.13, 2023 +0.19, 2024 −0.03, 2025 +
 
 ## 16. Test
 
-`pytest` esegue 134 test (85 senza quelli segnati `slow`). Verificano tra l'altro: valori di riferimento, parità put-call e greche (contro differenze finite) di Black-Scholes; funzione caratteristica di Heston come martingala, limite verso Black-Scholes, limiti di non arbitraggio e confronto con Monte Carlo; albero americano contro Longstaff-Schwartz, convergenza nei passi e coincidenza con Black-Scholes dove l'esercizio anticipato non conviene; stima di q su chain costruite a q noto (dove la parity europea sbaglia); fit SVI che ritrova parametri noti, anche con rumore; assenza di arbitraggio calendar della superficie; coerenza tra P&L simulato e teoria gamma; errori Newey-West su serie con autocorrelazione nota. La CI su GitHub Actions li lancia a ogni push.
+`pytest` esegue 132 test (82 senza quelli segnati `slow`). Verificano tra l'altro: valori di riferimento, parità put-call e greche (contro differenze finite) di Black-Scholes; funzione caratteristica di Heston come martingala, limite verso Black-Scholes, limiti di non arbitraggio e confronto con Monte Carlo; albero americano contro Longstaff-Schwartz, convergenza nei passi e coincidenza con Black-Scholes dove l'esercizio anticipato non conviene; stima di q su chain costruite a q noto (dove la parity europea sbaglia); fit SVI che ritrova parametri noti, anche con rumore; assenza di arbitraggio calendar della superficie; coerenza tra P&L simulato e teoria gamma; errori Newey-West su serie con autocorrelazione nota. La CI su GitHub Actions li lancia a ogni push.

@@ -234,3 +234,10 @@ def test_scadenza_senza_put_scartata_e_segnalata(raw_am):
     raw = raw_am[~((raw_am["scadenza"] == scad) & (raw_am["kind"] == "put"))]
     c = real.costruisci_chain(raw, S0A, R_A, DATA)
     assert len(c.attrs["scadenze_senza_q"]) == 1 and c["T"].nunique() == 3
+
+
+def test_q_con_150_passi_come_con_300(raw_am):
+    d = real.pulisci(raw_am, DATA)
+    T = sorted(d["T"].unique())[1]
+    g = d[d["T"] == T]
+    assert abs(real.stima_q(g, S0A, R_A, T, 150) - real.stima_q(g, S0A, R_A, T, 300)) < 1e-4

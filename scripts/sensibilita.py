@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+ROOT = Path(__file__).resolve().parents[1]          # le cartelle data/ e output/ sono quelle del progetto
+sys.path.insert(0, str(ROOT / "src"))
 from volsurf import backtest as bt  # noqa: E402
 from volsurf import synthetic as sy  # noqa: E402
 
@@ -30,7 +31,7 @@ def main():
     M = sy.Mondo()
     S, V = sy.simulate_P(M, 1260, n_paths=a.percorsi, seed=7)
     pd.options.display.float_format = "{:.2f}".format
-    out = Path("output")
+    out = ROOT / "output"
     out.mkdir(exist_ok=True)
 
     A = pd.DataFrame({(g, lam): riga(bt.backtest(replace(M, lam=lam), S, V, g))
